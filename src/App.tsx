@@ -218,33 +218,42 @@ export default function App() {
   }
 
   const handleUpdateTavolo = async (id: number, updates: Partial<Tavolo>) => {
-    const snapshot = [...tavoli]
+  const snapshot = [...tavoli]
 
-    setTavoli((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
-    )
-
-    const { error } = await supabase
-      .from('tavoli')
-      .update({
-        ...(updates.nome !== undefined ? { nome: updates.nome } : {}),
-        ...(updates.posti !== undefined ? { posti: updates.posti } : {}),
-        ...(updates.sala !== undefined ? { sala: updates.sala } : {}),
-        ...(updates.stato !== undefined ? { stato: updates.stato } : {}),
-        ...(updates.forma !== undefined ? { forma: updates.forma } : {}),
-        ...(updates.x !== undefined ? { x: updates.x } : {}),
-        ...(updates.y !== undefined ? { y: updates.y } : {}),
-        ...(updates.width !== undefined ? { width: updates.width } : {}),
-        ...(updates.height !== undefined ? { height: updates.height } : {}),
-      })
-      .eq('id', id)
-
-    if (error) {
-      console.error('Errore aggiornamento tavolo:', error)
-      alert(`Errore aggiornamento tavolo: ${error.message}`)
-      setTavoli(snapshot)
-    }
+  const updatesPuliti: Partial<Tavolo> = {
+    ...updates,
+    ...(updates.x !== undefined ? { x: Math.round(updates.x) } : {}),
+    ...(updates.y !== undefined ? { y: Math.round(updates.y) } : {}),
+    ...(updates.width !== undefined ? { width: Math.round(updates.width) } : {}),
+    ...(updates.height !== undefined ? { height: Math.round(updates.height) } : {}),
   }
+
+  setTavoli((prev) =>
+    prev.map((t) => (t.id === id ? { ...t, ...updatesPuliti } : t))
+  )
+
+  const { error } = await supabase
+    .from('tavoli')
+    .update({
+      ...(updatesPuliti.nome !== undefined ? { nome: updatesPuliti.nome } : {}),
+      ...(updatesPuliti.posti !== undefined ? { posti: updatesPuliti.posti } : {}),
+      ...(updatesPuliti.sala !== undefined ? { sala: updatesPuliti.sala } : {}),
+      ...(updatesPuliti.stato !== undefined ? { stato: updatesPuliti.stato } : {}),
+      ...(updatesPuliti.forma !== undefined ? { forma: updatesPuliti.forma } : {}),
+      ...(updatesPuliti.x !== undefined ? { x: updatesPuliti.x } : {}),
+      ...(updatesPuliti.y !== undefined ? { y: updatesPuliti.y } : {}),
+      ...(updatesPuliti.width !== undefined ? { width: updatesPuliti.width } : {}),
+      ...(updatesPuliti.height !== undefined ? { height: updatesPuliti.height } : {}),
+    })
+    .eq('id', id)
+
+  if (error) {
+    console.error('Errore aggiornamento tavolo:', error)
+    alert(`Errore aggiornamento tavolo: ${error.message}`)
+    setTavoli(snapshot)
+  }
+}  
+
 
   const handleDeleteTavolo = async (id: number) => {
     const snapshotTavoli = [...tavoli]
