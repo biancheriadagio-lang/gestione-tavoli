@@ -108,10 +108,12 @@ export default function App() {
 
     if (tavoliError) {
       console.error('Errore caricamento tavoli:', tavoliError)
+      alert(`Errore caricamento tavoli: ${tavoliError.message}`)
     }
 
     if (prenError) {
       console.error('Errore caricamento prenotazioni:', prenError)
+      alert(`Errore caricamento prenotazioni: ${prenError.message}`)
     }
 
     if (tavoliData && tavoliData.length > 0) {
@@ -138,7 +140,7 @@ export default function App() {
       setPrenotazioni(
         prenData.map((p: any) => ({
           id: Number(p.id),
-          tavoloIds: p.tavolo_ids,
+          tavoloIds: p.tavolo_ids || [],
           nomeCliente: p.nome_cliente,
           telefono: p.telefono || '',
           persone: p.persone,
@@ -168,7 +170,12 @@ export default function App() {
       height: t.height,
     }))
 
-    await supabase.from('tavoli').upsert(rows)
+    const { error } = await supabase.from('tavoli').upsert(rows)
+
+    if (error) {
+      console.error('Errore salvataggio tavoli iniziali:', error)
+      alert(`Errore salvataggio tavoli iniziali: ${error.message}`)
+    }
   }
 
   const handleAddTavolo = async (sala: Sala) => {
@@ -188,6 +195,8 @@ export default function App() {
       height: 90,
     }
 
+    setTavoli((prev) => [...prev, nuovoTavolo])
+
     const { error } = await supabase.from('tavoli').insert({
       id: nuovoTavolo.id,
       nome: nuovoTavolo.nome,
@@ -202,14 +211,19 @@ export default function App() {
     })
 
     if (error) {
-      console.error(error)
-      return
+      console.error('Errore inserimento tavolo:', error)
+      alert(`Errore inserimento tavolo: ${error.message}`)
+      setTavoli((prev) => prev.filter((t) => t.id !== nuovoId))
     }
-
-    setTavoli((prev) => [...prev, nuovoTavolo])
   }
 
   const handleUpdateTavolo = async (id: number, updates: Partial<Tavolo>) => {
+    const snapshot = [...tavoli]
+
+    setTavoli((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
+    )
+
     const { error } = await supabase
       .from('tavoli')
       .update({
@@ -226,25 +240,27 @@ export default function App() {
       .eq('id', id)
 
     if (error) {
-      console.error(error)
-      return
+      console.error('Errore aggiornamento tavolo:', error)
+      alert(`Errore aggiornamento tavolo: ${error.message}`)
+      setTavoli(snapshot)
     }
-
-    setTavoli((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
-    )
   }
 
   const handleDeleteTavolo = async (id: number) => {
-    const { error } = await supabase.from('tavoli').delete().eq('id', id)
-
-    if (error) {
-      console.error(error)
-      return
-    }
+    const snapshotTavoli = [...tavoli]
+    const snapshotPrenotazioni = [...prenotazioni]
 
     setTavoli((prev) => prev.filter((t) => t.id !== id))
     setPrenotazioni((prev) => prev.filter((p) => !p.tavoloIds.includes(id)))
+
+    const { error } = await supabase.from('tavoli').delete().eq('id', id)
+
+    if (error) {
+      console.error('Errore cancellazione tavolo:', error)
+      alert(`Errore cancellazione tavolo: ${error.message}`)
+      setTavoli(snapshotTavoli)
+      setPrenotazioni(snapshotPrenotazioni)
+    }
   }
 
   const handleAddPrenotazione = async (prenotazione: Omit<Prenotazione, 'id'>) => {
@@ -252,6 +268,8 @@ export default function App() {
       id: Date.now(),
       ...prenotazione,
     }
+
+    setPrenotazioni((prev) => [...prev, nuova])
 
     const { error } = await supabase.from('prenotazioni').insert({
       id: nuova.id,
@@ -267,11 +285,11 @@ export default function App() {
     })
 
     if (error) {
-      console.error(error)
+      console.error('Errore inserimento prenotazione:', error)
+      alert(`Errore inserimento prenotazione: ${error.message}`)
+      setPrenotazioni((prev) => prev.filter((p) => p.id !== nuova.id))
       return
     }
-
-    setPrenotazioni((prev) => [...prev, nuova])
 
     for (const tavoloId of prenotazione.tavoloIds) {
       await handleUpdateTavolo(tavoloId, { stato: 'prenotato' })
@@ -285,8 +303,27 @@ export default function App() {
 
     if (!conferma) return
 
-    await supabase.from('prenotazioni').delete().neq('id', 0)
-    await supabase.from('tavoli').delete().neq('id', 0)
+    const { error: errorPren } = await supabase
+      .from('prenotazioni')
+      .delete()
+      .neq('id', 0)
+
+    const { error: errorTav } = await supabase
+      .from('tavoli')
+      .delete()
+      .neq('id', 0)
+
+    if (errorPren) {
+      console.error('Errore reset prenotazioni:', errorPren)
+      alert(`Errore reset prenotazioni: ${errorPren.message}`)
+      return
+    }
+
+    if (errorTav) {
+      console.error('Errore reset tavoli:', errorTav)
+      alert(`Errore reset tavoli: ${errorTav.message}`)
+      return
+    }
 
     setTavoli([])
     setPrenotazioni([])
