@@ -16,55 +16,87 @@ interface Profilo {
 export default function App() {
   const [session, setSession] = useState<any>(null)
   const [profilo, setProfilo] = useState<Profilo | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [profiloLoading, setProfiloLoading] = useState(false)
+  const [erroreProfilo, setErroreProfilo] = useState('')
   const [vista, setVista] = useState<'dashboard' | 'utenti'>('dashboard')
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session)
-      if (data.session?.user) {
-        await caricaProfilo(data.session.user.id)
+    const initAuth = async () => {
+      setAuthLoading(true)
+
+      const { data, error } = await supabase.auth.getSession()
+
+      if (error) {
+        console.error('Errore getSession:', error)
+        setSession(null)
+        setAuthLoading(false)
+        return
       }
-      setLoading(false)
-    })
+
+      setSession(data.session)
+      setAuthLoading(false)
+    }
+
+    initAuth()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      if (session?.user) {
-        await caricaProfilo(session.user.id)
-      } else {
-        setProfilo(null)
-      }
-      setLoading(false)
+    } = supabase.auth.onAuthStateChange((_event, nuovaSessione) => {
+      setSession(nuovaSessione)
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  const caricaProfilo = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+  useEffect(() => {
+    const caricaProfilo = async () => {
+      if (!session?.user?.id) {
+        setProfilo(null)
+        setProfiloLoading(false)
+        setErroreProfilo('')
+        return
+      }
 
-    if (error) {
-      console.error(error)
-      return
+      setProfiloLoading(true)
+      setErroreProfilo('')
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Errore caricamento profilo:', error)
+        setErroreProfilo(error.message || 'Errore caricamento profilo')
+        setProfilo(null)
+        setProfiloLoading(false)
+        return
+      }
+
+      if (!data) {
+        setErroreProfilo('Profilo non trovato. Controlla la tabella profiles.')
+        setProfilo(null)
+        setProfiloLoading(false)
+        return
+      }
+
+      setProfilo(data as Profilo)
+      setProfiloLoading(false)
     }
 
-    setProfilo(data as Profilo)
-  }
+    caricaProfilo()
+  }, [session])
 
   const logout = async () => {
     await supabase.auth.signOut()
-    setProfilo(null)
     setSession(null)
+    setProfilo(null)
+    setErroreProfilo('')
   }
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-xl">
         Caricamento...
@@ -76,10 +108,39 @@ export default function App() {
     return <Login />
   }
 
-  if (!profilo) {
+  if (profiloLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-xl">
         Caricamento profilo...
+      </div>
+    )
+  }
+
+  if (erroreProfilo) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full">
+          <h1 className="text-2xl font-bold mb-4">Errore profilo</h1>
+          <p className="text-red-600 mb-4">{erroreProfilo}</p>
+          <p className="text-sm text-gray-600 mb-6">
+            Probabilmente il profilo non esiste ancora oppure le policy di Supabase
+            stanno bloccando la lettura.
+          </p>
+          <button
+            onClick={logout}
+            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!profilo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Profilo non trovato
       </div>
     )
   }
