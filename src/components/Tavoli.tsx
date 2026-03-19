@@ -166,19 +166,14 @@ function Tavoli({
     const candidati: Tavolo[][] = []
 
     for (const t1 of disponibili) {
-      if (t1.posti >= persone) {
-        candidati.push([t1])
-      }
+      if (t1.posti >= persone) candidati.push([t1])
     }
 
     for (let i = 0; i < disponibili.length; i++) {
       for (let j = i + 1; j < disponibili.length; j++) {
         const combo = [disponibili[i], disponibili[j]]
         const posti = combo.reduce((sum, t) => sum + t.posti, 0)
-
-        if (posti >= persone && comboVicino(combo)) {
-          candidati.push(combo)
-        }
+        if (posti >= persone && comboVicino(combo)) candidati.push(combo)
       }
     }
 
@@ -187,10 +182,7 @@ function Tavoli({
         for (let k = j + 1; k < disponibili.length; k++) {
           const combo = [disponibili[i], disponibili[j], disponibili[k]]
           const posti = combo.reduce((sum, t) => sum + t.posti, 0)
-
-          if (posti >= persone && comboVicino(combo)) {
-            candidati.push(combo)
-          }
+          if (posti >= persone && comboVicino(combo)) candidati.push(combo)
         }
       }
     }
@@ -203,7 +195,6 @@ function Tavoli({
 
   const apriPrenotazioneManuale = () => {
     if (!tavoloSelezionato) return
-
     setForm((prev) => ({
       ...prev,
       persone: tavoloSelezionato.posti,
@@ -331,7 +322,7 @@ function Tavoli({
     <div className="space-y-6">
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
         <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+          <div className="flex flex-col gap-4 mb-4">
             <div className="flex flex-wrap gap-2">
               {sale.map((sala) => (
                 <button
@@ -348,17 +339,17 @@ function Tavoli({
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={apriPrenotazioneAutomatica}
-                className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                className="px-4 py-3 rounded-lg bg-green-600 text-white hover:bg-green-700"
               >
                 + Prenotazione automatica
               </button>
 
               <button
                 onClick={() => onAddTavolo(salaAttiva)}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                className="px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
               >
                 + Aggiungi tavolo
               </button>
@@ -385,23 +376,17 @@ function Tavoli({
                   size={{ width: tavolo.width, height: tavolo.height }}
                   position={{ x: tavolo.x, y: tavolo.y }}
                   bounds="parent"
+                  enableResizing={false}
                   onDragStop={(_, d) => {
                     onUpdateTavolo(tavolo.id, { x: d.x, y: d.y })
                   }}
-                  onResizeStop={(_, __, ref, ___, position) => {
-                    onUpdateTavolo(tavolo.id, {
-                      width: ref.offsetWidth,
-                      height: ref.offsetHeight,
-                      x: position.x,
-                      y: position.y,
-                    })
-                  }}
                   onClick={() => setSelectedId(tavolo.id)}
-                  className={`border-2 rounded-xl shadow-sm cursor-move ${getBg(
+                  onTouchEnd={() => setSelectedId(tavolo.id)}
+                  className={`border-2 rounded-xl shadow-sm ${getBg(
                     tavolo.stato
                   )} ${selectedId === tavolo.id ? 'ring-4 ring-blue-300' : ''}`}
                 >
-                  <div className="w-full h-full flex flex-col items-center justify-center text-center px-2 select-none">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center px-2 select-none relative">
                     <div className="font-bold text-gray-900">{tavolo.nome}</div>
                     <div className="text-sm text-gray-700">{tavolo.posti} posti</div>
                     <div className="text-xs text-gray-600 mt-1">{tavolo.forma}</div>
@@ -412,6 +397,16 @@ function Tavoli({
                         {prenotazioneAttiva.nomeCliente}
                       </div>
                     )}
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedId(tavolo.id)
+                      }}
+                      className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[11px] px-2 py-1 rounded-md bg-white border border-gray-300 shadow sm:hidden"
+                    >
+                      Modifica
+                    </button>
                   </div>
                 </Rnd>
               )
@@ -419,7 +414,7 @@ function Tavoli({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4">
+        <div className="hidden xl:block bg-white rounded-xl shadow p-4">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             Modifica tavolo
           </h2>
@@ -555,6 +550,137 @@ function Tavoli({
         </div>
       </div>
 
+      {tavoloSelezionato && (
+        <div className="xl:hidden bg-white rounded-xl shadow p-4">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Modifica tavolo
+          </h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nome tavolo
+              </label>
+              <input
+                type="text"
+                value={tavoloSelezionato.nome}
+                onChange={(e) =>
+                  onUpdateTavolo(tavoloSelezionato.id, { nome: e.target.value })
+                }
+                className="w-full border border-gray-300 rounded-lg px-3 py-3"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Posti
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={tavoloSelezionato.posti}
+                onChange={(e) =>
+                  onUpdateTavolo(tavoloSelezionato.id, {
+                    posti: parseInt(e.target.value) || 1,
+                  })
+                }
+                className="w-full border border-gray-300 rounded-lg px-3 py-3"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sala
+              </label>
+              <select
+                value={tavoloSelezionato.sala}
+                onChange={(e) =>
+                  onUpdateTavolo(tavoloSelezionato.id, {
+                    sala: e.target.value as Sala,
+                  })
+                }
+                className="w-full border border-gray-300 rounded-lg px-3 py-3"
+              >
+                {sale.map((sala) => (
+                  <option key={sala} value={sala}>
+                    {sala}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Forma
+              </label>
+              <select
+                value={tavoloSelezionato.forma}
+                onChange={(e) =>
+                  aggiornaForma(
+                    tavoloSelezionato.id,
+                    e.target.value as FormaTavolo
+                  )
+                }
+                className="w-full border border-gray-300 rounded-lg px-3 py-3"
+              >
+                <option value="quadrato">Quadrato</option>
+                <option value="rettangolare">Rettangolare</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Stato
+              </label>
+              <select
+                value={tavoloSelezionato.stato}
+                onChange={(e) =>
+                  onUpdateTavolo(tavoloSelezionato.id, {
+                    stato: e.target.value as StatoTavolo,
+                  })
+                }
+                className="w-full border border-gray-300 rounded-lg px-3 py-3"
+              >
+                <option value="libero">Libero</option>
+                <option value="prenotato">Prenotato</option>
+                <option value="occupato">Occupato</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 pt-2">
+              <button
+                onClick={apriPrenotazioneManuale}
+                className="px-4 py-3 rounded-lg bg-green-600 text-white hover:bg-green-700"
+              >
+                Prenota tavolo manualmente
+              </button>
+
+              <button
+                onClick={() =>
+                  onUpdateTavolo(tavoloSelezionato.id, {
+                    x: 40,
+                    y: 40,
+                  })
+                }
+                className="px-4 py-3 rounded-lg bg-gray-100 hover:bg-gray-200"
+              >
+                Reset posizione
+              </button>
+
+              <button
+                onClick={() => {
+                  onDeleteTavolo(tavoloSelezionato.id)
+                  setSelectedId(null)
+                }}
+                className="px-4 py-3 rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Elimina
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow p-4">
         <h3 className="text-xl font-bold text-gray-900 mb-4">
           Lista prenotazioni - {salaAttiva}
@@ -564,7 +690,7 @@ function Tavoli({
           <p className="text-gray-500">Nessuna prenotazione in questa sala.</p>
         ) : (
           <div className="overflow-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[700px]">
               <thead>
                 <tr className="border-b text-left">
                   <th className="py-2">Tavoli</th>
