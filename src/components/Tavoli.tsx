@@ -39,6 +39,11 @@ function Tavoli({
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [showPrenotaManuale, setShowPrenotaManuale] = useState(false)
   const [showPrenotaAutomatica, setShowPrenotaAutomatica] = useState(false)
+  const [showCalendario, setShowCalendario] = useState(false)
+
+  const [dataCalendario, setDataCalendario] = useState(
+    new Date().toISOString().slice(0, 10)
+  )
 
   const [form, setForm] = useState({
     nomeCliente: '',
@@ -53,6 +58,18 @@ function Tavoli({
   const [tavoliAssegnatiPreview, setTavoliAssegnatiPreview] = useState<number[]>([])
 
   const tavoloSelezionato = tavoli.find((t) => t.id === selectedId) || null
+
+  const prenotazioniGiorno = useMemo(
+    () =>
+      prenotazioni
+        .filter((p) => p.data === dataCalendario)
+        .sort((a, b) => {
+          if (a.ora < b.ora) return -1
+          if (a.ora > b.ora) return 1
+          return 0
+        }),
+    [prenotazioni, dataCalendario]
+  )
 
   const getPrenotazioneAttivaDelTavolo = (tavoloId: number) => {
     const trovata = prenotazioni
@@ -206,6 +223,7 @@ function Tavoli({
 
   const apriPrenotazioneAutomatica = () => {
     resetForm()
+    setForm((prev) => ({ ...prev, data: dataCalendario }))
     setShowPrenotaAutomatica(true)
   }
 
@@ -352,6 +370,13 @@ function Tavoli({
                 className="px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
               >
                 + Aggiungi tavolo
+              </button>
+
+              <button
+                onClick={() => setShowCalendario(true)}
+                className="px-4 py-3 rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+              >
+                Calendario prenotazioni
               </button>
             </div>
           </div>
@@ -732,6 +757,98 @@ function Tavoli({
           </div>
         )}
       </div>
+
+      {showCalendario && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl p-5 max-h-[90vh] overflow-auto">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+              <h3 className="text-2xl font-bold">Calendario prenotazioni</h3>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="date"
+                  value={dataCalendario}
+                  onChange={(e) => setDataCalendario(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2"
+                />
+
+                <button
+                  onClick={() => {
+                    setShowCalendario(false)
+                    apriPrenotazioneAutomatica()
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                >
+                  Aggiungi manualmente
+                </button>
+
+                <button
+                  onClick={() => setShowCalendario(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                >
+                  Chiudi
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-4 text-sm text-gray-600">
+              Data selezionata: <span className="font-semibold">{dataCalendario}</span>
+            </div>
+
+            {prenotazioniGiorno.length === 0 ? (
+              <div className="p-6 border rounded-lg bg-gray-50 text-gray-500">
+                Nessuna prenotazione per questa data.
+              </div>
+            ) : (
+              <div className="overflow-auto">
+                <table className="w-full text-sm min-w-[900px]">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="py-2">Ora</th>
+                      <th className="py-2">Sala</th>
+                      <th className="py-2">Tavoli</th>
+                      <th className="py-2">Cliente</th>
+                      <th className="py-2">Telefono</th>
+                      <th className="py-2">Persone</th>
+                      <th className="py-2">Celiache</th>
+                      <th className="py-2">Origine</th>
+                      <th className="py-2">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prenotazioniGiorno.map((p) => {
+                      const nomiTavoli = tavoli
+                        .filter((t) => p.tavoloIds.includes(t.id))
+                        .map((t) => t.nome)
+                        .join(' + ')
+
+                      const origine = (p as any).origine || 'manuale'
+
+                      return (
+                        <tr key={p.id} className="border-b">
+                          <td className="py-2">{p.ora}</td>
+                          <td className="py-2">{p.sala}</td>
+                          <td className="py-2">{nomiTavoli}</td>
+                          <td className="py-2">{p.nomeCliente}</td>
+                          <td className="py-2">{p.telefono || '-'}</td>
+                          <td className="py-2">{p.persone}</td>
+                          <td className="py-2">{p.celiache}</td>
+                          <td className="py-2 capitalize">{origine}</td>
+                          <td className="py-2">{p.note || '-'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-5 text-sm text-gray-500">
+              Qui arriveranno anche le prenotazioni future da piattaforme esterne come WhatsApp e TheFork.
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPrenotaManuale && tavoloSelezionato && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
