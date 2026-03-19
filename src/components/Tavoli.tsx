@@ -381,12 +381,26 @@ function Tavoli({
                     onUpdateTavolo(tavolo.id, { x: d.x, y: d.y })
                   }}
                   onClick={() => setSelectedId(tavolo.id)}
-                  onTouchEnd={() => setSelectedId(tavolo.id)}
+                  onTouchStart={() => setSelectedId(tavolo.id)}
                   className={`border-2 rounded-xl shadow-sm ${getBg(
                     tavolo.stato
                   )} ${selectedId === tavolo.id ? 'ring-4 ring-blue-300' : ''}`}
                 >
                   <div className="w-full h-full flex flex-col items-center justify-center text-center px-2 select-none relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedId(tavolo.id)
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation()
+                        setSelectedId(tavolo.id)
+                      }}
+                      className="absolute top-1 right-1 text-[10px] px-2 py-1 rounded-md bg-white border border-gray-300 shadow md:hidden z-20"
+                    >
+                      Modifica
+                    </button>
+
                     <div className="font-bold text-gray-900">{tavolo.nome}</div>
                     <div className="text-sm text-gray-700">{tavolo.posti} posti</div>
                     <div className="text-xs text-gray-600 mt-1">{tavolo.forma}</div>
@@ -397,16 +411,6 @@ function Tavoli({
                         {prenotazioneAttiva.nomeCliente}
                       </div>
                     )}
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedId(tavolo.id)
-                      }}
-                      className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[11px] px-2 py-1 rounded-md bg-white border border-gray-300 shadow sm:hidden"
-                    >
-                      Modifica
-                    </button>
                   </div>
                 </Rnd>
               )
