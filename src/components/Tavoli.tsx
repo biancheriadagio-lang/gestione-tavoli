@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Rnd } from 'react-rnd'
-import type { Sala, Tavolo, FormaTavolo, StatoTavolo, Prenotazione } from '../App'
+import type {
+  Sala,
+  Tavolo,
+  FormaTavolo,
+  StatoTavolo,
+  Prenotazione,
+  PrenotazioneInput,
+} from '../DashboardApp'
 
 interface TavoliProps {
   tavoli: Tavolo[]
@@ -10,7 +17,7 @@ interface TavoliProps {
   onAddTavolo: (sala: Sala) => void
   onUpdateTavolo: (id: number, updates: Partial<Tavolo>) => void
   onDeleteTavolo: (id: number) => void
-  onAddPrenotazione: (prenotazione: Omit<Prenotazione, 'id'>) => void
+  onAddPrenotazione: (prenotazione: PrenotazioneInput) => void
 }
 
 const sale: Sala[] = ['SALA NORD', 'SALA SUD', 'SALA ESTERNA']
@@ -55,7 +62,9 @@ function Tavoli({
     note: '',
   })
 
-  const [tavoliAssegnatiPreview, setTavoliAssegnatiPreview] = useState<number[]>([])
+  const [tavoliAssegnatiPreview, setTavoliAssegnatiPreview] = useState<
+    number[]
+  >([])
 
   const tavoloSelezionato = tavoli.find((t) => t.id === selectedId) || null
 
@@ -792,7 +801,8 @@ function Tavoli({
             </div>
 
             <div className="mb-4 text-sm text-gray-600">
-              Data selezionata: <span className="font-semibold">{dataCalendario}</span>
+              Data selezionata:{' '}
+              <span className="font-semibold">{dataCalendario}</span>
             </div>
 
             {prenotazioniGiorno.length === 0 ? (
@@ -801,7 +811,7 @@ function Tavoli({
               </div>
             ) : (
               <div className="overflow-auto">
-                <table className="w-full text-sm min-w-[900px]">
+                <table className="w-full text-sm min-w-[1000px]">
                   <thead>
                     <tr className="border-b text-left">
                       <th className="py-2">Ora</th>
@@ -812,6 +822,7 @@ function Tavoli({
                       <th className="py-2">Persone</th>
                       <th className="py-2">Celiache</th>
                       <th className="py-2">Origine</th>
+                      <th className="py-2">Stato</th>
                       <th className="py-2">Note</th>
                     </tr>
                   </thead>
@@ -822,8 +833,6 @@ function Tavoli({
                         .map((t) => t.nome)
                         .join(' + ')
 
-                      const origine = (p as any).origine || 'manuale'
-
                       return (
                         <tr key={p.id} className="border-b">
                           <td className="py-2">{p.ora}</td>
@@ -833,7 +842,10 @@ function Tavoli({
                           <td className="py-2">{p.telefono || '-'}</td>
                           <td className="py-2">{p.persone}</td>
                           <td className="py-2">{p.celiache}</td>
-                          <td className="py-2 capitalize">{origine}</td>
+                          <td className="py-2 capitalize">{p.origine}</td>
+                          <td className="py-2 capitalize">
+                            {p.statoPrenotazione}
+                          </td>
                           <td className="py-2">{p.note || '-'}</td>
                         </tr>
                       )
@@ -844,7 +856,8 @@ function Tavoli({
             )}
 
             <div className="mt-5 text-sm text-gray-500">
-              Qui arriveranno anche le prenotazioni future da piattaforme esterne come WhatsApp e TheFork.
+              Qui arriveranno anche le prenotazioni future da piattaforme
+              esterne come WhatsApp e TheFork.
             </div>
           </div>
         </div>
@@ -871,7 +884,9 @@ function Tavoli({
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm mb-1">Telefono (facoltativo)</label>
+                <label className="block text-sm mb-1">
+                  Telefono (facoltativo)
+                </label>
                 <input
                   type="text"
                   value={form.telefono}
@@ -903,7 +918,10 @@ function Tavoli({
                   max={form.persone}
                   value={form.celiache}
                   onChange={(e) =>
-                    setForm({ ...form, celiache: parseInt(e.target.value) || 0 })
+                    setForm({
+                      ...form,
+                      celiache: parseInt(e.target.value) || 0,
+                    })
                   }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
@@ -914,9 +932,7 @@ function Tavoli({
                 <input
                   type="date"
                   value={form.data}
-                  onChange={(e) =>
-                    setForm({ ...form, data: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, data: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
@@ -926,9 +942,7 @@ function Tavoli({
                 <input
                   type="time"
                   value={form.ora}
-                  onChange={(e) =>
-                    setForm({ ...form, ora: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, ora: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
@@ -937,9 +951,7 @@ function Tavoli({
                 <label className="block text-sm mb-1">Note</label>
                 <textarea
                   value={form.note}
-                  onChange={(e) =>
-                    setForm({ ...form, note: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, note: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   rows={3}
                 />
@@ -947,7 +959,8 @@ function Tavoli({
             </div>
 
             <div className="mt-4 text-sm text-gray-600">
-              Tavolo assegnato: <span className="font-semibold">{tavoloSelezionato.nome}</span>
+              Tavolo assegnato:{' '}
+              <span className="font-semibold">{tavoloSelezionato.nome}</span>
             </div>
 
             <div className="flex justify-end gap-3 mt-5">
@@ -992,7 +1005,9 @@ function Tavoli({
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm mb-1">Telefono (facoltativo)</label>
+                <label className="block text-sm mb-1">
+                  Telefono (facoltativo)
+                </label>
                 <input
                   type="text"
                   value={form.telefono}
@@ -1024,7 +1039,10 @@ function Tavoli({
                   max={form.persone}
                   value={form.celiache}
                   onChange={(e) =>
-                    setForm({ ...form, celiache: parseInt(e.target.value) || 0 })
+                    setForm({
+                      ...form,
+                      celiache: parseInt(e.target.value) || 0,
+                    })
                   }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
@@ -1035,9 +1053,7 @@ function Tavoli({
                 <input
                   type="date"
                   value={form.data}
-                  onChange={(e) =>
-                    setForm({ ...form, data: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, data: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
@@ -1047,9 +1063,7 @@ function Tavoli({
                 <input
                   type="time"
                   value={form.ora}
-                  onChange={(e) =>
-                    setForm({ ...form, ora: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, ora: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
@@ -1058,9 +1072,7 @@ function Tavoli({
                 <label className="block text-sm mb-1">Note</label>
                 <textarea
                   value={form.note}
-                  onChange={(e) =>
-                    setForm({ ...form, note: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, note: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   rows={3}
                 />

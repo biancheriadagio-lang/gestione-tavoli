@@ -5,6 +5,13 @@ import { supabase } from './supabase'
 export type Sala = 'SALA SUD' | 'SALA NORD' | 'SALA ESTERNA'
 export type StatoTavolo = 'libero' | 'prenotato' | 'occupato'
 export type FormaTavolo = 'quadrato' | 'rettangolare'
+export type OriginePrenotazione = 'manuale' | 'whatsapp' | 'thefork' | 'sito'
+export type StatoPrenotazione =
+  | 'richiesta'
+  | 'confermata'
+  | 'arrivati'
+  | 'chiusa'
+  | 'annullata'
 
 export interface Tavolo {
   id: number
@@ -21,6 +28,22 @@ export interface Tavolo {
 
 export interface Prenotazione {
   id: number
+  tavoloIds: number[]
+  nomeCliente: string
+  telefono: string
+  persone: number
+  celiache: number
+  data: string
+  ora: string
+  note: string
+  sala: Sala
+  origine: OriginePrenotazione
+  statoPrenotazione: StatoPrenotazione
+  codiceEsterno?: string
+  createdAt?: string
+}
+
+export interface PrenotazioneInput {
   tavoloIds: number[]
   nomeCliente: string
   telefono: string
@@ -83,7 +106,7 @@ const tavoliIniziali: Tavolo[] = [
   },
 ]
 
-export default function App() {
+export default function DashboardApp() {
   const [tavoli, setTavoli] = useState<Tavolo[]>([])
   const [prenotazioni, setPrenotazioni] = useState<Prenotazione[]>([])
   const [salaAttiva, setSalaAttiva] = useState<Sala>('SALA NORD')
@@ -149,6 +172,10 @@ export default function App() {
           ora: p.ora,
           note: p.note || '',
           sala: p.sala,
+          origine: p.origine || 'manuale',
+          statoPrenotazione: p.stato_prenotazione || 'confermata',
+          codiceEsterno: p.codice_esterno || '',
+          createdAt: p.created_at || '',
         }))
       )
     }
@@ -218,42 +245,55 @@ export default function App() {
   }
 
   const handleUpdateTavolo = async (id: number, updates: Partial<Tavolo>) => {
-  const snapshot = [...tavoli]
+    const snapshot = [...tavoli]
 
-  const updatesPuliti: Partial<Tavolo> = {
-    ...updates,
-    ...(updates.x !== undefined ? { x: Math.round(updates.x) } : {}),
-    ...(updates.y !== undefined ? { y: Math.round(updates.y) } : {}),
-    ...(updates.width !== undefined ? { width: Math.round(updates.width) } : {}),
-    ...(updates.height !== undefined ? { height: Math.round(updates.height) } : {}),
+    const updatesPuliti: Partial<Tavolo> = {
+      ...updates,
+      ...(updates.x !== undefined ? { x: Math.round(updates.x) } : {}),
+      ...(updates.y !== undefined ? { y: Math.round(updates.y) } : {}),
+      ...(updates.width !== undefined
+        ? { width: Math.round(updates.width) }
+        : {}),
+      ...(updates.height !== undefined
+        ? { height: Math.round(updates.height) }
+        : {}),
+    }
+
+    setTavoli((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...updatesPuliti } : t))
+    )
+
+    const { error } = await supabase
+      .from('tavoli')
+      .update({
+        ...(updatesPuliti.nome !== undefined ? { nome: updatesPuliti.nome } : {}),
+        ...(updatesPuliti.posti !== undefined
+          ? { posti: updatesPuliti.posti }
+          : {}),
+        ...(updatesPuliti.sala !== undefined ? { sala: updatesPuliti.sala } : {}),
+        ...(updatesPuliti.stato !== undefined
+          ? { stato: updatesPuliti.stato }
+          : {}),
+        ...(updatesPuliti.forma !== undefined
+          ? { forma: updatesPuliti.forma }
+          : {}),
+        ...(updatesPuliti.x !== undefined ? { x: updatesPuliti.x } : {}),
+        ...(updatesPuliti.y !== undefined ? { y: updatesPuliti.y } : {}),
+        ...(updatesPuliti.width !== undefined
+          ? { width: updatesPuliti.width }
+          : {}),
+        ...(updatesPuliti.height !== undefined
+          ? { height: updatesPuliti.height }
+          : {}),
+      })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Errore aggiornamento tavolo:', error)
+      alert(`Errore aggiornamento tavolo: ${error.message}`)
+      setTavoli(snapshot)
+    }
   }
-
-  setTavoli((prev) =>
-    prev.map((t) => (t.id === id ? { ...t, ...updatesPuliti } : t))
-  )
-
-  const { error } = await supabase
-    .from('tavoli')
-    .update({
-      ...(updatesPuliti.nome !== undefined ? { nome: updatesPuliti.nome } : {}),
-      ...(updatesPuliti.posti !== undefined ? { posti: updatesPuliti.posti } : {}),
-      ...(updatesPuliti.sala !== undefined ? { sala: updatesPuliti.sala } : {}),
-      ...(updatesPuliti.stato !== undefined ? { stato: updatesPuliti.stato } : {}),
-      ...(updatesPuliti.forma !== undefined ? { forma: updatesPuliti.forma } : {}),
-      ...(updatesPuliti.x !== undefined ? { x: updatesPuliti.x } : {}),
-      ...(updatesPuliti.y !== undefined ? { y: updatesPuliti.y } : {}),
-      ...(updatesPuliti.width !== undefined ? { width: updatesPuliti.width } : {}),
-      ...(updatesPuliti.height !== undefined ? { height: updatesPuliti.height } : {}),
-    })
-    .eq('id', id)
-
-  if (error) {
-    console.error('Errore aggiornamento tavolo:', error)
-    alert(`Errore aggiornamento tavolo: ${error.message}`)
-    setTavoli(snapshot)
-  }
-}  
-
 
   const handleDeleteTavolo = async (id: number) => {
     const snapshotTavoli = [...tavoli]
@@ -272,9 +312,13 @@ export default function App() {
     }
   }
 
-  const handleAddPrenotazione = async (prenotazione: Omit<Prenotazione, 'id'>) => {
+  const handleAddPrenotazione = async (
+    prenotazione: PrenotazioneInput
+  ) => {
     const nuova: Prenotazione = {
       id: Date.now(),
+      origine: 'manuale',
+      statoPrenotazione: 'confermata',
       ...prenotazione,
     }
 
@@ -291,6 +335,9 @@ export default function App() {
       ora: nuova.ora,
       note: nuova.note || '',
       sala: nuova.sala,
+      origine: nuova.origine,
+      stato_prenotazione: nuova.statoPrenotazione,
+      codice_esterno: nuova.codiceEsterno || null,
     })
 
     if (error) {
