@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Rnd } from 'react-rnd'
 import type {
   Sala,
@@ -23,6 +23,14 @@ interface TavoliProps {
 const sale: Sala[] = ['SALA NORD', 'SALA SUD', 'SALA ESTERNA']
 const SOGLIA_VICINANZA = 170
 
+function getLocalDateString() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function Tavoli({
   tavoli,
   prenotazioni,
@@ -33,24 +41,13 @@ function Tavoli({
   onDeleteTavolo,
   onAddPrenotazione,
 }: TavoliProps) {
-  const tavoliSala = useMemo(
-    () => tavoli.filter((t) => t.sala === salaAttiva),
-    [tavoli, salaAttiva]
-  )
-
-  const prenotazioniSala = useMemo(
-    () => prenotazioni.filter((p) => p.sala === salaAttiva),
-    [prenotazioni, salaAttiva]
-  )
-
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [showPrenotaManuale, setShowPrenotaManuale] = useState(false)
   const [showPrenotaAutomatica, setShowPrenotaAutomatica] = useState(false)
   const [showCalendario, setShowCalendario] = useState(false)
 
-  const [dataCalendario, setDataCalendario] = useState(
-    new Date().toISOString().slice(0, 10)
-  )
+  const [today, setToday] = useState(getLocalDateString())
+  const [dataCalendario, setDataCalendario] = useState(getLocalDateString())
 
   const [form, setForm] = useState({
     nomeCliente: '',
@@ -66,6 +63,39 @@ function Tavoli({
     number[]
   >([])
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const nuovoToday = getLocalDateString()
+
+      setToday((oldToday) => {
+        if (oldToday !== nuovoToday) {
+          setDataCalendario((prev) => (prev === oldToday ? nuovoToday : prev))
+          return nuovoToday
+        }
+        return oldToday
+      })
+    }, 60000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const tavoliSala = useMemo(
+    () => tavoli.filter((t) => t.sala === salaAttiva),
+    [tavoli, salaAttiva]
+  )
+
+  const prenotazioniSala = useMemo(
+    () =>
+      prenotazioni
+        .filter((p) => p.sala === salaAttiva)
+        .sort((a, b) => {
+          const aa = `${a.data} ${a.ora}`
+          const bb = `${b.data} ${b.ora}`
+          return aa.localeCompare(bb)
+        }),
+    [prenotazioni, salaAttiva]
+  )
+
   const tavoloSelezionato = tavoli.find((t) => t.id === selectedId) || null
 
   const prenotazioniGiorno = useMemo(
@@ -80,12 +110,36 @@ function Tavoli({
     [prenotazioni, dataCalendario]
   )
 
-  const getPrenotazioneAttivaDelTavolo = (tavoloId: number) => {
-    const trovata = prenotazioni
-      .filter((p) => p.sala === salaAttiva && p.tavoloIds.includes(tavoloId))
-      .sort((a, b) => (a.data + a.ora).localeCompare(b.data + b.ora))[0]
+  const prenotazioniSalaData = useMemo(
+    () =>
+      prenotazioni
+        .filter((p) => p.sala === salaAttiva && p.data === dataCalendario)
+        .filter((p) => p.statoPrenotazione !== 'annullata')
+        .sort((a, b) => {
+          if (a.ora < b.ora) return -1
+          if (a.ora > b.ora) return 1
+          return 0
+        }),
+    [prenotazioni, salaAttiva, dataCalendario]
+  )
 
-    return trovata || null
+  const tavoliPrenotatiNelGiorno = useMemo(() => {
+    return new Set(
+      prenotazioniSalaData.flatMap((p) => p.tavoloIds).filter(Boolean)
+    )
+  }, [prenotazioniSalaData])
+
+  const getPrenotazioneAttivaDelTavolo = (tavoloId: number) => {
+    const trovata =
+      prenotazioniSalaData.find((p) => p.tavoloIds.includes(tavoloId)) || null
+
+    return trovata
+  }
+
+  const getStatoVisualeTavolo = (tavolo: Tavolo): StatoTavolo => {
+    if (tavolo.stato === 'occupato') return 'occupato'
+    if (tavoliPrenotatiNelGiorno.has(tavolo.id)) return 'prenotato'
+    return 'libero'
   }
 
   const getBg = (stato: StatoTavolo) => {
@@ -134,6 +188,7 @@ function Tavoli({
         p.sala === t.sala &&
         p.data === data &&
         p.ora === ora &&
+        p.statoPrenotazione !== 'annullata' &&
         p.tavoloIds.includes(t.id)
     )
 
@@ -225,6 +280,7 @@ function Tavoli({
       ...prev,
       persone: tavoloSelezionato.posti,
       celiache: 0,
+      data: dataCalendario,
     }))
     setTavoliAssegnatiPreview([tavoloSelezionato.id])
     setShowPrenotaManuale(true)
@@ -394,6 +450,14 @@ function Tavoli({
             Sala attiva: <span className="font-semibold">{salaAttiva}</span>
           </div>
 
+          <div className="mb-3 text-sm text-gray-500">
+            Data visualizzata:{' '}
+            <span className="font-semibold">{dataCalendario}</span>
+            {dataCalendario === today && (
+              <span className="ml-2 text-green-600 font-medium">(oggi)</span>
+            )}
+          </div>
+
           <div className="relative w-full h-[650px] rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden">
             {tavoliSala.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-lg">
@@ -403,6 +467,7 @@ function Tavoli({
 
             {tavoliSala.map((tavolo) => {
               const prenotazioneAttiva = getPrenotazioneAttivaDelTavolo(tavolo.id)
+              const statoVisuale = getStatoVisualeTavolo(tavolo)
 
               return (
                 <Rnd
@@ -417,7 +482,7 @@ function Tavoli({
                   onClick={() => setSelectedId(tavolo.id)}
                   onTouchStart={() => setSelectedId(tavolo.id)}
                   className={`border-2 rounded-xl shadow-sm ${getBg(
-                    tavolo.stato
+                    statoVisuale
                   )} ${selectedId === tavolo.id ? 'ring-4 ring-blue-300' : ''}`}
                 >
                   <div className="w-full h-full flex flex-col items-center justify-center text-center px-2 select-none relative">
@@ -438,9 +503,11 @@ function Tavoli({
                     <div className="font-bold text-gray-900">{tavolo.nome}</div>
                     <div className="text-sm text-gray-700">{tavolo.posti} posti</div>
                     <div className="text-xs text-gray-600 mt-1">{tavolo.forma}</div>
-                    <div className="text-[11px] mt-1 font-medium">{tavolo.stato}</div>
+                    <div className="text-[11px] mt-1 font-medium">
+                      {statoVisuale}
+                    </div>
 
-                    {tavolo.stato === 'prenotato' && prenotazioneAttiva && (
+                    {statoVisuale === 'prenotato' && prenotazioneAttiva && (
                       <div className="text-[10px] mt-1 font-semibold text-gray-800 leading-tight">
                         {prenotazioneAttiva.nomeCliente}
                       </div>
